@@ -1,7 +1,4 @@
-// TrackRepository
 package com.example.musicplayer.repository;
 import com.example.musicplayer.model.Track;
 import org.springframework.data.jpa.repository.JpaRepository;
-
-public interface TrackRepository extends JpaRepository<Track, Long> {
-}
+public interface TrackRepository extends JpaRepository<Track, Long> {}

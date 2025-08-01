@@ -1,4 +1,5 @@
 package com.example.musicplayer.service;
+
 import com.example.musicplayer.dto.LoginRequest;
 import com.example.musicplayer.dto.SignupRequest;
 import com.example.musicplayer.model.User;
@@ -17,7 +18,7 @@ public class AuthService {
     private PasswordEncoder passwordEncoder;
 
     public String register(SignupRequest request) {
-        if (userRepo.existsByEmail(request.getEmail())) {
+        if (userRepo.existsByEmailIgnoreCase(request.getEmail())) {
             throw new RuntimeException("Email already in use");
         }
 
@@ -31,7 +32,7 @@ public class AuthService {
     }
 
     public String login(LoginRequest request) {
-        User user = userRepo.findByEmail(request.getEmail())
+        User user = userRepo.findByEmailIgnoreCase(request.getEmail())
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
         if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {

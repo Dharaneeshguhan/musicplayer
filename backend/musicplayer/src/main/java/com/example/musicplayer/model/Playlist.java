@@ -1,18 +1,23 @@
 package com.example.musicplayer.model;
 
+import com.fasterxml.jackson.annotation.JsonBackReference;
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
 import lombok.Getter;
-import lombok.NoArgsConstructor;
 import lombok.Setter;
+import lombok.NoArgsConstructor;
+import lombok.AllArgsConstructor;
 
 import java.util.ArrayList;
 import java.util.List;
 
 @Entity
 @Table(name = "playlists")
-@Getter @Setter @NoArgsConstructor @AllArgsConstructor
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
 public class Playlist {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -20,6 +25,8 @@ public class Playlist {
     private String name;
 
     @ManyToOne
+    @JoinColumn(name = "user_id")
+    @JsonBackReference    // <-- This side will not be serialized again (breaks recursion)
     private User user;
 
     @ManyToMany

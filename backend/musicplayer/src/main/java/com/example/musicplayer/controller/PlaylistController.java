@@ -1,58 +1,41 @@
 package com.example.musicplayer.controller;
 
+import com.example.musicplayer.dto.PlaylistDTO;
+import com.example.musicplayer.dto.TrackDTO;
 import com.example.musicplayer.model.Playlist;
-import com.example.musicplayer.model.Track;
-import com.example.musicplayer.model.User;
 import com.example.musicplayer.repository.PlaylistRepository;
-import com.example.musicplayer.repository.TrackRepository;
-import com.example.musicplayer.repository.UserRepository;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.transaction.annotation.Transactional;
 
-import java.util.Map;
+import java.util.List;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/playlists")
 @CrossOrigin(origins = "http://localhost:5173")
 public class PlaylistController {
 
-    @Autowired
-    private PlaylistRepository playlistRepo;
+    private final PlaylistRepository playlistRepository;
 
-    @Autowired
-    private UserRepository userRepo;
-
-    @Autowired
-    private TrackRepository trackRepo;
-
-    @PostMapping
-    public ResponseEntity<?> createPlaylist(Authentication auth, @RequestBody Map<String, Object> body) {
-        String name = (String) body.get("name");
-        User user = userRepo.findByEmail(auth.getName()).orElseThrow();
-
-        Playlist playlist = new Playlist();
-        playlist.setName(name);
-        playlist.setUser(user);
-        playlistRepo.save(playlist);
-
-        return ResponseEntity.ok("Playlist created");
-    }
-
-    @PostMapping("/{playlistId}/add/{trackId}")
-    public ResponseEntity<?> addTrack(@PathVariable Long playlistId, @PathVariable Long trackId) {
-        Playlist playlist = playlistRepo.findById(playlistId).orElseThrow();
-        Track track = trackRepo.findById(trackId).orElseThrow();
-
-        playlist.getTracks().add(track);
-        playlistRepo.save(playlist);
-        return ResponseEntity.ok("Track added to playlist");
+    public PlaylistController(PlaylistRepository playlistRepository) {
+        this.playlistRepository = playlistRepository;
     }
 
     @GetMapping
-    public ResponseEntity<?> getUserPlaylists(Authentication auth) {
-        User user = userRepo.findByEmail(auth.getName()).orElseThrow();
-        return ResponseEntity.ok(playlistRepo.findByUserId(user.getId()));
+    @Transactional(readOnly = true)
+    public ResponseEntity<List<PlaylistDTO>> getAllPlaylists() {
+        List<Playlist> playlists = playlistRepository.findAll();
+        List<PlaylistDTO> playlistDtos = playlists.stream()
+                .map(pl -> new PlaylistDTO(
+                        pl.getId(),
+                        pl.getName(),
+                        pl.getTracks().stream()
+                                .map(t -> new TrackDTO(t.getId(), t.getTitle(), t.getArtist(), t.getCover(), t.getUrl()))
+                                .collect(Collectors.toList())
+                ))
+                .collect(Collectors.toList());
+
+        return ResponseEntity.ok(playlistDtos);
     }
 }

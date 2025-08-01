@@ -1,8 +1,11 @@
 import React, { useState } from "react";
 import axios from "axios";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate, Link, useLocation } from "react-router-dom";
 
 const Login = () => {
+  const location = useLocation();
+  const from = location.state?.from?.pathname || "/";
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [message, setMessage] = useState("");
@@ -15,8 +18,14 @@ const Login = () => {
         email,
         password,
       });
-      setMessage("Login successful! Redirecting...");
-      setTimeout(() => navigate("/home"), 1500);
+      
+      if (res.data.token) {
+        localStorage.setItem('token', res.data.token);
+        setMessage("Login successful! Redirecting...");
+        setTimeout(() => navigate("/home"), 1500);
+      } else {
+        setMessage("Failed to receive authentication token");
+      }
     } catch (err) {
       setMessage(err.response?.data.message || "Login failed. Please try again.");
     }

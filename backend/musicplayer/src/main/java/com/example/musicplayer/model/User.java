@@ -1,59 +1,79 @@
 package com.example.musicplayer.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.Set;
 
 @Entity
-@Table(name = "users")
+@Table(name = "users") // avoid naming conflict with reserved words
 public class User {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(nullable = false)
     private String name;
 
-    @Column(unique = true)
+    @Column(unique = true, nullable = false)
     private String email;
 
+    @Column(nullable = false)
     private String password;
 
-    private LocalDate joinedAt = LocalDate.now();
+    private LocalDateTime createdAt;
 
-    // ✅ Many-to-Many for favorites
-    @ManyToMany
+    private LocalDate joinedAt;
+
+    @ManyToMany(fetch = FetchType.LAZY)
     @JoinTable(
             name = "user_favorites",
             joinColumns = @JoinColumn(name = "user_id"),
             inverseJoinColumns = @JoinColumn(name = "track_id")
     )
+    @JsonIgnore // prevent infinite recursion during JSON serialization
     private Set<Track> favorites = new HashSet<>();
 
-    // ✅ One-to-Many for playlists
-    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OneToMany(mappedBy = "user", fetch = FetchType.LAZY, cascade = CascadeType.ALL)
+    @JsonIgnore
     private Set<Playlist> playlists = new HashSet<>();
 
     // Constructors
     public User() {}
 
-    public User(Long id, String name, String email, String password, LocalDate joinedAt,
-                Set<Track> favorites, Set<Playlist> playlists) {
-        this.id = id;
-        this.name = name;
-        this.email = email;
-        this.password = password;
-        this.joinedAt = joinedAt;
-        this.favorites = favorites;
-        this.playlists = playlists;
-    }
-
-    // Getters and Setters
-
+    // Getters and setters
     public Long getId() {
         return id;
+    }
+
+    public void addFavorite(Long trackId) {
+        Track track = new Track(trackId);
+        favorites.add(track);
+    }
+
+    public void removeFavorite(Long trackId) {
+        favorites.removeIf(track -> track.getId().equals(trackId));
+    }
+
+    public void createPlaylist(String name) {
+        Playlist playlist = new Playlist(name, this);
+        playlists.add(playlist);
+    }
+
+    public void addTrackToPlaylist(Long playlistId, Long trackId) {
+        Playlist playlist = playlists.stream()
+                .filter(p -> p.getId().equals(playlistId))
+                .findFirst()
+                .orElseThrow(() -> new RuntimeException("Playlist not found"));
+        Track track = new Track(trackId);
+        playlist.addTrack(track);
+    }
+
+    public Long getId() {
     }
 
     public void setId(Long id) {
@@ -82,6 +102,14 @@ public class User {
 
     public void setPassword(String password) {
         this.password = password;
+    }
+
+    public LocalDateTime getCreatedAt() {
+        return createdAt;
+    }
+
+    public void setCreatedAt(LocalDateTime createdAt) {
+        this.createdAt = createdAt;
     }
 
     public LocalDate getJoinedAt() {
