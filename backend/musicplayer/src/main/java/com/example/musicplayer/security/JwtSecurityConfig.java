@@ -1,13 +1,15 @@
-package com.example.musicplayer.config;
+package com.example.musicplayer.security;
 
-import com.example.musicplayer.security.JwtAuthFilter;
-import com.example.musicplayer.security.JwtProvider;
 import com.example.musicplayer.repository.UserRepository;
+import com.example.musicplayer.security.JwtProvider;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.config.annotation.web.configuration.WebSecurityCustomizer;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
@@ -17,20 +19,23 @@ import java.util.Collections;
 
 @Configuration
 @EnableWebSecurity
-public class SecurityConfig {
+public class JwtSecurityConfig {
 
     private final JwtProvider jwtProvider;
     private final UserRepository userRepository;
 
-    public SecurityConfig(JwtProvider jwtProvider, UserRepository userRepository) {
+    public JwtSecurityConfig(JwtProvider jwtProvider, UserRepository userRepository) {
         this.jwtProvider = jwtProvider;
         this.userRepository = userRepository;
     }
 
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-        JwtAuthFilter jwtAuthFilter = new JwtAuthFilter(jwtProvider, userRepository);
-        
+    public JwtAuthFilter jwtAuthFilter() {
+        return new JwtAuthFilter(jwtProvider, userRepository);
+    }
+
+    @Bean
+    public SecurityFilterChain jwtSecurityFilterChain(HttpSecurity http) throws Exception {
         http
             .csrf(csrf -> csrf.disable())
             .authorizeHttpRequests(auth -> auth
@@ -45,7 +50,7 @@ public class SecurityConfig {
             .sessionManagement(session -> session
                 .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
             )
-            .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
+            .addFilterBefore(jwtAuthFilter(), UsernamePasswordAuthenticationFilter.class)
             .cors(cors -> cors
                 .configurationSource(request -> {
                     CorsConfiguration config = new CorsConfiguration();
@@ -57,5 +62,23 @@ public class SecurityConfig {
                 })
             );
         return http.build();
+    }
+
+    @Bean
+    public PasswordEncoder passwordEncoder() {
+        return new BCryptPasswordEncoder();
+    }
+
+    @Bean
+    public WebSecurityCustomizer webSecurityCustomizer() {
+        return (web) -> web.ignoring()
+            .requestMatchers(
+                "/v2/api-docs",
+                "/configuration/ui",
+                "/swagger-resources/**",
+                "/configuration/security",
+                "/swagger-ui.html",
+                "/webjars/**"
+            );
     }
 }

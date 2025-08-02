@@ -3,15 +3,19 @@ package com.example.musicplayer.controller;
 import com.example.musicplayer.dto.PlaylistDTO;
 import com.example.musicplayer.dto.TrackDTO;
 import com.example.musicplayer.model.User;
+import com.example.musicplayer.model.Track;
 import com.example.musicplayer.repository.UserRepository;
-import jakarta.servlet.http.HttpServletRequest;
-import org.springframework.http.ResponseEntity;
+import com.example.musicplayer.service.UserService;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
-import java.security.Principal;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.security.Principal;
 import java.util.stream.Collectors;
 
 @RestController
@@ -20,9 +24,11 @@ import java.util.stream.Collectors;
 public class UserController {
 
     private final UserRepository userRepository;
+    private final UserService userService;
     
-    public UserController(UserRepository userRepository) {
+    public UserController(UserRepository userRepository, UserService userService) {
         this.userRepository = userRepository;
+        this.userService = userService;
     }
 
     @GetMapping("/check-user")
@@ -73,36 +79,50 @@ public class UserController {
     }
 
     @PostMapping("/favorites")
-    @Transactional
-    public ResponseEntity<Void> addFavorite(@RequestBody Long trackId, Principal principal) {
+    public ResponseEntity<Void> toggleFavorite(@RequestBody Map<String, Long> requestBody, Principal principal) {
         User user = getUserFromPrincipal(principal);
-        user.addFavorite(trackId);
-        return ResponseEntity.ok().build();
+        Long trackId = requestBody.get("trackId");
+        
+        if (trackId == null) {
+            return ResponseEntity.badRequest().body(null);
+        }
+        
+        try {
+            // Check if track is already a favorite
+            boolean isFavorite = user.getFavorites().stream()
+                .anyMatch(t -> t.getId().equals(trackId));
+            
+            if (isFavorite) {
+                userService.removeFavorite(user, trackId);
+            } else {
+                userService.addFavorite(user, trackId);
+            }
+            
+            return ResponseEntity.ok().build();
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().build();
+        }
     }
 
-    @DeleteMapping("/favorites/{trackId}")
-    @Transactional
-    public ResponseEntity<Void> removeFavorite(@PathVariable Long trackId, Principal principal) {
+    @GetMapping("/favorites")
+    public ResponseEntity<List<Track>> getFavorites(Principal principal) {
         User user = getUserFromPrincipal(principal);
-        user.removeFavorite(trackId);
-        return ResponseEntity.ok().build();
+        return ResponseEntity.ok(new ArrayList<>(user.getFavorites()));
     }
 
     @PostMapping("/playlists")
-    @Transactional
     public ResponseEntity<Void> createPlaylist(@RequestBody String playlistName, Principal principal) {
         User user = getUserFromPrincipal(principal);
-        user.createPlaylist(playlistName);
+        userService.createPlaylist(user, playlistName);
         return ResponseEntity.ok().build();
     }
 
     @PostMapping("/playlists/{playlistId}/tracks")
-    @Transactional
     public ResponseEntity<Void> addTrackToPlaylist(@PathVariable Long playlistId,
                                                    @RequestBody Long trackId,
                                                    Principal principal) {
         User user = getUserFromPrincipal(principal);
-        user.addTrackToPlaylist(playlistId, trackId);
+        userService.addTrackToPlaylist(user, playlistId, trackId);
         return ResponseEntity.ok().build();
     }
 

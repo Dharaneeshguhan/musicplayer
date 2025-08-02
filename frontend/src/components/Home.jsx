@@ -52,42 +52,32 @@ const Home = () => {
 
   const handleToggleFavorite = async (trackId) => {
     try {
-      const isFavorite = favorites.some(f => f.id === trackId);
-      if (isFavorite) {
-        await fetchWithDetailedError(`${API_BASE}/user/favorites/${trackId}`, {
-          method: "DELETE"
-        });
-      } else {
-        await fetchWithDetailedError(`${API_BASE}/user/favorites`, {
-          method: "POST",
-          data: { trackId }
-        });
+      const token = localStorage.getItem("token");
+      if (!token) {
+        throw new Error("No authentication token found");
       }
-      setFavorites(prev => 
-        isFavorite 
-          ? prev.filter(f => f.id !== trackId)
-          : [...prev, recentTracks.find(t => t.id === trackId)]
-      );
+
+      const headers = {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      };
+
+      const isCurrentlyFavorite = favorites.some(f => f.id === trackId);
+      const url = `${API_BASE}/favorites/${trackId}`;
+
+      if (isCurrentlyFavorite) {
+        await axios.delete(url, { headers });
+      } else {
+        await axios.post(url, {}, { headers });
+      }
+
+      // Always fetch updated list from backend to ensure consistency
+      const updatedFavorites = await fetchWithDetailedError(`${API_BASE}/favorites`);
+      setFavorites(updatedFavorites);
     } catch (err) {
-      setErrorMsg(err.message);
+      setErrorMsg(err.message || "Error updating favorites");
+      console.error("Favorite toggle failed:", err);
     }
-  };
-
-  const handleSeek = (value) => {
-    if (audioRef.current) {
-      audioRef.current.currentTime = (value / 100) * audioRef.current.duration;
-    }
-  };
-
-  const handleVolumeChange = (value) => {
-    if (audioRef.current) {
-      audioRef.current.volume = value / 100;
-    }
-  };
-
-  const getAuthToken = () => {
-    const token = localStorage.getItem("token");
-    return token ? token : null;
   };
 
   const fetchWithDetailedError = async (url, options = {}) => {
@@ -120,18 +110,38 @@ const Home = () => {
       
       const method = options.method || 'GET';
       const data = options.data;
-      
-      const res = method === 'GET' 
-        ? await axios.get(url, config)
-        : await axios.post(url, data, config);
-      
-      if (res.status !== 200) {
-        console.error('API Response:', res.data);
-        throw new Error(`Failed to fetch data: ${res.data?.message || 'Unknown error'}`);
+
+      // Use axios method based on HTTP method
+      const axiosMethod = {
+        GET: axios.get,
+        POST: axios.post,
+        PUT: axios.put,
+        DELETE: axios.delete
+      }[method];
+
+      if (!axiosMethod) {
+        throw new Error(`Unsupported HTTP method: ${method}`);
       }
-      return res.data;
+
+      // Log the request details
+      console.log('Making request to:', url);
+      console.log('Method:', method);
+      console.log('Headers:', config.headers);
+      console.log('Data:', data);
+
+      const response = await axiosMethod(url, data ? { ...config, data } : config);
+      
+      if (response.status !== 200) {
+        console.error('API Response:', response.data);
+        throw new Error(`Failed to fetch data: ${response.data?.message || 'Unknown error'}`);
+      }
+      return response.data;
     } catch (error) {
-      console.error('Error fetching data:', error.response?.data || error.message);
+      console.error('Error fetching data:', {
+        error: error.response?.data || error.message,
+        status: error.response?.status,
+        config: error.config
+      });
       throw error;
     }
   };
@@ -201,18 +211,6 @@ const Home = () => {
   const toggleShuffle = () => setIsShuffle((prev) => !prev);
   const toggleRepeat = () => setIsRepeat((prev) => !prev);
 
-  const toggleFavorite = async (trackId) => {
-    try {
-      await fetchWithDetailedError(`${API_BASE}/favorites/${trackId}`, {
-        method: "POST"
-      });
-      const updated = await fetchWithDetailedError(`${API_BASE}/user/favorites`);
-      setFavorites(updated);
-    } catch (err) {
-      setErrorMsg(err.message);
-    }
-  };
-
   const playNext = useCallback(() => {
     if (queue.length === 0) return;
     let nextIndex = isShuffle ? Math.floor(Math.random() * queue.length) : queueIndex + 1;
@@ -273,6 +271,18 @@ const Home = () => {
   const logout = () => {
     localStorage.removeItem("token");
     window.location.href = "/login";
+  };
+
+  const handleSeek = (value) => {
+    if (audioRef.current) {
+      audioRef.current.currentTime = (value / 100) * audioRef.current.duration;
+    }
+  };
+
+  const handleVolumeChange = (value) => {
+    if (audioRef.current) {
+      audioRef.current.volume = value / 100;
+    }
   };
 
   return (
@@ -363,7 +373,7 @@ const Home = () => {
           ref={audioRef}
           track={currentTrack}
           isPlaying={isPlaying}
-          onTogglePlay={togglePlay}
+          onTogglePlay={() => setIsPlaying(!isPlaying)}
           onSkipNext={playNext}
           onSkipPrev={playPrevious}
           onToggleShuffle={toggleShuffle}
@@ -373,8 +383,7 @@ const Home = () => {
           queue={queue}
           onQueueTrack={handleQueueTrack}
           onToggleFavorite={handleToggleFavorite}
-          isFavorite={favorites.some(f => f.id === currentTrack.id)}
-          onAddToPlaylist={addToPlaylist}
+          isFavorite={Array.isArray(favorites) && favorites.some(f => f.id === currentTrack?.id)}
           currentTime={audioRef.current?.currentTime || 0}
           duration={audioRef.current?.duration || 0}
           onSeek={handleSeek}
@@ -386,11 +395,6 @@ const Home = () => {
             setQueueIndex(index);
             setIsPlaying(true);
           }}
-          isFavorite={favorites.some(f => f.id === currentTrack.id)}
-          onToggleFavorite={handleToggleFavorite}
-          playlists={playlists}
-          onAddToPlaylist={addToPlaylist}
-          onQueueTrack={handleQueueTrack}
           formatTime={formatTime}
         />
       )}

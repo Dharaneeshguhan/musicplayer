@@ -123,7 +123,7 @@ const MusicPlayer = ({
         {isExpanded && (
           <div className="mt-4 flex gap-6">
             <button
-              onClick={e=>{e.stopPropagation();onToggleFavorite();}}
+              onClick={e=>{e.stopPropagation();onToggleFavorite(track.id);}}
               className={`hover:text-red-500 ${isFavorite ? "text-red-500" : "text-gray-300"}`}
               title="Favorite"
             >

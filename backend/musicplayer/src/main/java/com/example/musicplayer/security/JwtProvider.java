@@ -25,19 +25,28 @@ public class JwtProvider {
     }
 
     public String getEmailFromJWT(String token) {
-        return Jwts.parserBuilder()
-                .setSigningKey(key)
-                .build()
-                .parseClaimsJws(token)
-                .getBody()
-                .getSubject();
+        try {
+            return Jwts.parserBuilder()
+                    .setSigningKey(key)
+                    .build()
+                    .parseClaimsJws(token)
+                    .getBody()
+                    .getSubject();
+        } catch (JwtException e) {
+            System.err.println("JWT Parsing Error: " + e.getMessage());
+            throw e;
+        }
     }
 
     public boolean validate(String token) {
         try {
             Jwts.parserBuilder().setSigningKey(key).build().parseClaimsJws(token);
             return true;
+        } catch (ExpiredJwtException e) {
+            System.err.println("Token expired: " + e.getMessage());
+            return false;
         } catch (JwtException | IllegalArgumentException e) {
+            System.err.println("JWT Validation Error: " + e.getMessage());
             return false;
         }
     }

@@ -22,11 +22,19 @@ public class Track {
     private String cover; // Cover image url
 
     @ManyToMany(mappedBy = "favorites", fetch = FetchType.LAZY)
-    @JsonIgnore // avoid recursion
-    private Set<User> favoredByUsers = new HashSet<>();
+    @JsonIgnore
+    private Set<User> usersWhoFavorited = new HashSet<>();
 
     // Constructors
     public Track() {}
+
+    public Track(Long id, String title, String artist, String url, String cover) {
+        this.id = id;
+        this.title = title;
+        this.artist = artist;
+        this.url = url;
+        this.cover = cover;
+    }
 
     // Getters and setters
     public Long getId() {

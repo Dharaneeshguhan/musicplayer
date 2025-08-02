@@ -1,4 +1,8 @@
 package com.example.musicplayer.repository;
 import com.example.musicplayer.model.Track;
 import org.springframework.data.jpa.repository.JpaRepository;
-public interface TrackRepository extends JpaRepository<Track, Long> {}
+import java.util.Optional;
+public interface TrackRepository extends JpaRepository<Track, Long> {
+    Optional<Track> findById(Long id);
+    boolean existsById(Long id);
+}
