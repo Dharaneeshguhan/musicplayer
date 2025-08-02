@@ -18,12 +18,14 @@ const MusicPlayer = ({
   queue = [],
   onToggleFavorite,
   isFavorite,
-  onAddToPlaylist,
   currentTime,
   duration,
   onSeek,
   volume,
   onVolumeChange,
+  onPlay,
+  onPause,
+  audioRef
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
 
@@ -77,7 +79,33 @@ const MusicPlayer = ({
             className="bg-white text-black p-3 rounded-full hover:bg-gray-300"
             title="Play/Pause"
           >
-            {isPlaying ? <FiPause size={20} /> : <FiPlay size={20} />}
+            {isPlaying ? (
+              <FiPause 
+                size={20} 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onTogglePlay();
+                  if (audioRef?.current) {
+                    audioRef.current.pause();
+                  }
+                  onPause && onPause();
+                }}
+              />
+            ) : (
+              <FiPlay 
+                size={20} 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onTogglePlay();
+                  if (audioRef?.current) {
+                    audioRef.current.play().catch((error) => {
+                      console.error('Error playing audio:', error);
+                    });
+                  }
+                  onPlay && onPlay();
+                }}
+              />
+            )}
           </button>
           <button className="text-gray-400 hover:text-white" onClick={e=>{e.stopPropagation();onSkipNext();}} title="Next">
             <FiSkipForward size={24} />
@@ -98,7 +126,13 @@ const MusicPlayer = ({
           <input
             type="range"
             value={duration ? (currentTime / duration) * 100 : 0}
-            onChange={onSeek}
+            onChange={(e) => {
+              const value = e.target.value;
+              if (audioRef?.current) {
+                audioRef.current.currentTime = (duration * value) / 100;
+              }
+              onSeek(value);
+            }}
             className="w-full h-1 bg-gray-700 rounded-full appearance-none cursor-pointer"
             min="0"
             max="100"
@@ -129,13 +163,6 @@ const MusicPlayer = ({
             >
               <FiHeart size={20} />
             </button>
-            <button
-              onClick={e => {e.stopPropagation();onAddToPlaylist();}}
-              className="text-gray-300 hover:text-white"
-              title="Add to Playlist"
-            >
-              <FiPlus size={20} />
-            </button>
             <button className="text-gray-300 hover:text-white" title="Share">
               <FiShare2 size={20} />
             </button>
@@ -146,7 +173,7 @@ const MusicPlayer = ({
           <div className="mt-6 w-full max-w-md mx-auto">
             <div className="text-white font-semibold mb-1">Queue</div>
             {queue.map((q, idx) => (
-              <div key={q.id + idx} className="text-sm text-gray-200 py-1">
+              <div key={`${q.id}-${idx}`} className="text-sm text-gray-200 py-1">
                 {q.title} - <span className="text-gray-400">{q.artist}</span>
               </div>
             ))}

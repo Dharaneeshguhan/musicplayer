@@ -10,13 +10,13 @@ import {
   FiSearch,
   FiPlay,
   FiPause,
+  FiUpload,
 } from "react-icons/fi";
 import MusicPlayer from "./MusicPlayer";
 import FavoritesPage from "./FavoritesPage";
-import PlaylistPage from "./PlaylistPage";
 import ProfilePage from "./Profile";
 import SettingsPage from "./SettingsPage";
-import PlaylistManager from "./PlaylistManager";
+import LocalMusicPlayer from "./LocalMusicPlayer";
 import axios from "axios";
 
 const API_BASE = "http://localhost:8080/api";
@@ -32,11 +32,9 @@ const Home = () => {
   const [queue, setQueue] = useState([]);
   const [queueIndex, setQueueIndex] = useState(0);
   const [favorites, setFavorites] = useState([]);
-  const [playlists, setPlaylists] = useState([]);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
-  const [playlistsVersion, setPlaylistsVersion] = useState(0);
   const audioRef = useRef(null);
 
   const formatTime = (time) => {
@@ -178,27 +176,23 @@ const Home = () => {
         console.log('User check response:', response);
         if (response.includes('true')) {
           // User exists, proceed with fetching data
-          return Promise.all([
-            fetchWithDetailedError(`${API_BASE}/tracks`),
-            fetchWithDetailedError(`${API_BASE}/user/favorites`),
-            fetchWithDetailedError(`${API_BASE}/user/playlists`)
-          ]);
-        } else {
-          console.error('User does not exist in database');
-          setErrorMsg('User not found in database');
-          return Promise.reject(new Error('User not found'));
-        }
-      })
-      .then(([tracks, favorites, playlists]) => {
-        setRecentTracks(tracks);
-        setFavorites(favorites);
-        setPlaylists(playlists);
-      })
+            return Promise.all([
+              fetchWithDetailedError(`${API_BASE}/tracks`)
+            ]);
+          } else {
+            console.error('User does not exist in database');
+            setErrorMsg('User not found in database');
+            return Promise.reject(new Error('User not found'));
+          }
+        })
+        .then(([tracks]) => {
+          setRecentTracks(tracks);
+        })
       .catch((err) => {
         console.error('Error:', err);
         setErrorMsg(err.message);
       });
-  }, [playlistsVersion]);
+  }, []);
 
   const handleTrackClick = (track) => {
     setCurrentTrack(track);
@@ -249,24 +243,6 @@ const Home = () => {
       t.artist.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const onPlaylistChange = () => {
-    setPlaylistsVersion((v) => v + 1);
-  };
-
-  const addToPlaylist = async (trackId, playlistId) => {
-    try {
-      if (!playlistId) {
-        throw new Error('No playlist selected');
-      }
-      await fetchWithDetailedError(`${API_BASE}/user/playlists/${playlistId}/tracks`, {
-        method: "POST",
-        data: { trackId }
-      });
-      onPlaylistChange();
-    } catch (err) {
-      setErrorMsg(err.message);
-    }
-  };
 
   const logout = () => {
     localStorage.removeItem("token");
@@ -296,8 +272,9 @@ const Home = () => {
           <button onClick={() => setActiveTab("favorites")} className="flex items-center gap-3 hover:text-indigo-600">
             <FiHeart /> Favorites
           </button>
-          <button onClick={() => setActiveTab("playlists")} className="flex items-center gap-3 hover:text-indigo-600">
-            <FiMusic /> Y Cave
+
+          <button onClick={() => setActiveTab("localmusic")} className="flex items-center gap-3 hover:text-indigo-600">
+            <FiUpload /> Local Music
           </button>
         </nav>
         <div className="mt-10">
@@ -356,13 +333,10 @@ const Home = () => {
           </div>
         )}
 
-        {activeTab === "favorites" && <FavoritesPage favorites={favorites} onPlay={handleTrackClick} />}
-        {activeTab === "playlists" && (
-          <PlaylistPage
-            playlists={playlists}
-            onPlay={handleTrackClick}
-            onPlaylistChange={onPlaylistChange}
-          />
+
+
+        {activeTab === "localmusic" && (
+          <LocalMusicPlayer onTrackSelect={handleTrackClick} />
         )}
         {activeTab === "profile" && <ProfilePage user={user} />}
         {activeTab === "settings" && <SettingsPage />}
